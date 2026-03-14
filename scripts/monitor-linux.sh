@@ -1,8 +1,15 @@
 #!/bin/bash
 # 系统监控脚本 - Linux 版本
 
-HISTORY_DIR="/home/app/.openclaw/skills/skill-system-monitor/history"
-CONFIG_FILE="/home/app/.openclaw/skills/config/skill-system-monitor/config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HISTORY_DIR="$SCRIPT_DIR/../history"
+CONFIG_FILE="$HOME/.openclaw/skills/config/skill-system-monitor/config.json"
+
+# 检查依赖
+if ! command -v bc &> /dev/null; then
+    echo "❌ 错误: 缺少依赖 'bc'，请安装: apt install bc -y"
+    exit 1
+fi
 TIMESTAMP=$(date "+%Y-%m-%d_%H-%M")
 DATE=$(date "+%Y-%m-%d %H:%M:%S")
 HOSTNAME=$(hostname)
