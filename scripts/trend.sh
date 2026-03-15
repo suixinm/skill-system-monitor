@@ -1,17 +1,23 @@
 #!/bin/bash
-# 7日趋势图（QuickChart）
+# 7日趋势图（本地生成，不发送外部服务）
 
-HISTORY_DIR="/home/app/.openclaw/skills/skill-system-monitor/history"
+# 获取技能目录（脚本在 skills/skill-system-monitor/scripts/ 下）
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HISTORY_DIR="${SKILL_DIR}/history"
 DAYS=7
+
+if [ ! -d "$HISTORY_DIR" ]; then
+    echo "⚠️ 历史目录不存在: $HISTORY_DIR"
+    exit 1
+fi
 
 python3 << 'PYEOF'
 import os
-import json
-import urllib.parse
+import re
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-HISTORY_DIR = "/home/app/.openclaw/skills/skill-system-monitor/history"
+HISTORY_DIR = os.environ.get('HISTORY_DIR', '/home/app/.openclaw/skills/skill-system-monitor/history')
 DAYS = 7
 
 day_disk = defaultdict(list)
@@ -29,12 +35,11 @@ for filename in os.listdir(HISTORY_DIR):
     if mtime < cutoff:
         continue
     
-    day = mtime.strftime('%Y-%m-%d')
+    day = mtime.strftime('%m-%d')
     
     try:
         with open(filepath) as f:
             content = f.read()
-            import re
             percents = re.findall(r'"percent":\s*(\d+)', content)
             if len(percents) >= 2:
                 day_disk[day].append(int(percents[0]))
@@ -49,8 +54,8 @@ if not day_disk:
 sorted_days = sorted(day_disk.keys())
 
 # 今天和昨天对比
-today = datetime.now().strftime('%Y-%m-%d')
-yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+today = datetime.now().strftime('%m-%d')
+yesterday = (datetime.now() - timedelta(days=1)).strftime('%m-%d')
 
 print("📈 7日系统监控趋势")
 print("================================")
@@ -77,40 +82,31 @@ if today in day_disk and yesterday in day_disk:
 else:
     print("⚠️ 缺少昨日数据，无法对比")
 
-# QuickChart 链接
-labels = [d[5:] for d in sorted_days]
-disk_data = [sum(day_disk[d]) // len(day_disk[d]) for d in sorted_days]
-mem_data = [sum(day_mem[d]) // len(day_mem[d]) for d in sorted_days]
-
-config = {
-    "type": "line",
-    "data": {
-        "labels": labels,
-        "datasets": [
-            {
-                "label": "Disk (%)",
-                "data": disk_data,
-                "borderColor": "#3498db",
-                "fill": False
-            },
-            {
-                "label": "Memory (%)",
-                "data": mem_data,
-                "borderColor": "#e74c3c",
-                "fill": False
-            }
-        ]
-    },
-    "options": {
-        "title": {
-            "display": True,
-            "text": "7-Day System Monitor"
-        }
-    }
-}
-
-encoded = urllib.parse.quote(json.dumps(config))
 print()
-print("📊 图表:")
-print(f"https://quickchart.io/chart?w=500&h=300&c={encoded}")
+
+# 本地 ASCII 图表
+def make_bar(percent, width=20):
+    """生成 ASCII 条形图"""
+    filled = int(percent / 100 * width)
+    bar = "█" * filled + "░" * (width - filled)
+    return bar
+
+print("📊 趋势图表 (本地生成)")
+print("-" * 40)
+
+print("\n💾 硬盘使用率:")
+for day in sorted_days:
+    avg = sum(day_disk[day]) // len(day_disk[day])
+    bar = make_bar(avg)
+    print(f"  {day} [{bar}] {avg}%")
+
+print("\n🧠 内存使用率:")
+for day in sorted_days:
+    avg = sum(day_mem[day]) // len(day_mem[day])
+    bar = make_bar(avg)
+    print(f"  {day} [{bar}] {avg}%")
+
+print()
+print("─" * 40)
+print("✅ 图表已本地生成，无外部数据传输")
 PYEOF

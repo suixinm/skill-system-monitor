@@ -1,7 +1,9 @@
 #!/bin/bash
 # 系统监控对比脚本 - 对比最近两次快照
 
-HISTORY_DIR="/home/app/.openclaw/skills/skill-system-monitor/history"
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HISTORY_DIR="${SCRIPT_DIR}/../history"
 
 # 获取最近两个 JSON 文件
 LATEST_FILES=($(ls -t $HISTORY_DIR/*.json 2>/dev/null | head -2))
